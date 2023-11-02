@@ -1,0 +1,110 @@
+---
+title: "IE 582-HW1"
+author: "Oya Hoban"
+date: "2023-11-02"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+require(data.table, quietly = TRUE)
+require(skimr)
+require(ggcorrplot)
+require(GGally)
+require(lubridate)
+require(urca)
+require(dplyr)
+require(zoo)
+
+```
+
+## IE 582- HW1- STOCK PRICE DATA
+
+In this homework, stock price data needs to be analyzed and principal component analysis applied.
+
+```{r get data}
+data_path_wide="C:/Users/VAL-USER1/OneDrive - Value Analytics Labs/Oya Files/Master Dersler/IE 582/HW1/all_ticks_wide.csv"
+data_path_long ="C:/Users/VAL-USER1/OneDrive - Value Analytics Labs/Oya Files/Master Dersler/IE 582/HW1/all_ticks_long.csv"
+data <-data.table(read.csv(data_path_wide))
+data_long <- data.table(read.csv(data_path_long))
+```
+
+When the first rows of the data is checked, it is seen as this is a time series data with 15 minutes increment, and at each column stock price is available for different stocks.
+And the stock prices seem to be numeric.
+
+```{r Check data}
+head(data, n=10)
+summary(data)
+skim(data)
+
+data$timestamp = as_datetime(data$timestamp) # change timestamp to datetime object
+data_long$timestamp = as_datetime(data_long$timestamp) # change timestamp to datetime object
+
+
+
+  
+
+```
+
+Since this is a large data set, HALKB, GARAN, AKBNK and AEFES are chosen to visualize to observe the continuity of the data. The data is seemed to have time series data characteristics and continuous and also follow a trend. 
+
+```{r}
+ggplot(data = data) + geom_line(aes(x=timestamp,y=HALKB,group=1,color="HALKB"))+ geom_line(aes(x=timestamp,y=GARAN,group=2,color="GARAN" ))+ geom_line(aes(x=timestamp,y=AKBNK,group=2,color="AKBNK" ))+  geom_line(aes(x=timestamp,y=AEFES,group=2,color="AEFES" ))+labs(x = "Timestamp",
+         y = "Stock Prices")                               
+unt_test=ur.kpss(data$HALKB)
+summary(unt_test)
+unt_test=ur.kpss(data$GARAN)
+summary(unt_test)
+unt_test=ur.kpss(data$AEFES)
+summary(unt_test)
+ggplot(data = filter(data_long,short_name == c("HALKB","GARAN","AKBNK","AEFES")), aes(x = short_name, y = price)) +
+  geom_boxplot(alpha = 0.4, notch = TRUE) +
+  labs(x="Stocks",y = "Prices") +
+  theme(axis.text.x = element_text(face = "italic"))
+
+
+
+```
+
+HALKB and GARAN are chosen to apply monthly correlation to observe the relationship between them, and it can be seen that at certain dates, their correlation seems to increase.
+```{r}
+
+
+
+test_data <- data[,c("timestamp","HALKB","GARAN")]
+
+test_data <- aggregate(list(GARAN = test_data$GARAN,HALKB=test_data$HALKB), 
+          list(Day = cut(test_data$timestamp, "1 day")), 
+          mean, na.action=na.omit)
+
+for (i in 1:length(test_data$Day)){
+  if (is.na(test_data$HALKB[i])){
+    test_data$HALKB[i] <- test_data$HALKB[i-1]
+  }
+  if (is.na(test_data$GARAN[i])){
+    test_data$GARAN[i] <- test_data$GARAN[i-1]
+  }
+}
+corr_mat = data.table(test_data$Day, cor=0)
+for (i in 1:length(test_data$Day)){
+  
+ corr_mat$cor[i] =  cor(test_data$HALKB[i:(i+30)], test_data$GARAN[i:(i+30)])
+  
+}
+  
+#check HALKB and GARAN
+
+plot(corr_mat, type="l")
+```
+
+
+When principal component analysis is applied to the dataset, it can be seen that first 11 components capture the 95% of the variation among the dataset.
+
+```{r}
+pca_obj = princomp(na.omit(data[,-1]),cor=T, na.rm = TRUE)
+summary(pca_obj,loadings=T)
+
+plot(pca_obj)
+
+```
+
