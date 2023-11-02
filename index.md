@@ -29,5 +29,5 @@ Syntax highlighted code block
 
 ## HW1 - Stock PriceData Visualization & PCA (02.11.2023)
 
-[Here]("files/HW-1.html") is my HW1's html file and [Here](files/HW-1.Rmd) is my HW1's rmd file.
+[Here]("HW-1.html") is my HW1's html file and [Here]("HW-1.Rmd") is my HW1's rmd file.
 ```
