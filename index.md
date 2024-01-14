@@ -6,9 +6,11 @@
 
 ## Project (15.01.2024)
 
-[Here](IE582_Fall23_Project_Description.pdf) is the project description for Fall 2023.
-###
-[Here](IE582Project.Rmd) is the rmd file for the project and [Here](IE582Project.html) is the html file.
+Here is the [Project description](Project/E582_Fall23_Project_Description.pdf) for the project for the Fall23. <br>
+
+Here you can check [our report](Project/IE582ProjectReportGroup6.pdf) of the Project as Group 6.<br>
+
+Also, you can achieve the [R Report](Project/IE582Project.html) and [Rmd](Project/IE582Project.Rmd) files. <br>
 
 ```
 
