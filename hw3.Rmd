@@ -1,0 +1,260 @@
+---
+title: "HW-3"
+author: "Oya Hoban"
+date: "2024-01-16"
+output: html_document
+---
+
+In Homework-3 of IE-582, we are required to conduct an experiment on Clustering and Estimation of Mixture of Multivariate Normal Distributions. 
+Firstly, 500 data points with 8 variables, each with 4 different parameter settings has been generated, resulting with 2000 data points in total. Unsupervised random forest is trained to determine the similarity between 2000 observations. After transforming similarity to dissimilarity, two clustering approaches (partitioning around medoids and hierarchical clustering with Ward’s method) are applied to achieve four clusters. K-means clustering is applied to the raw data for baseline comparison. The performance of the strategies is further evaluated by introducing additional noise variables from a Bernoulli distribution.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(MASS)
+library(data.table)
+library(randomForest)
+library(rpart)
+library(cluster)
+require("ggplot2")
+require("factoextra")
+library(dplyr)
+```
+1- Generate 500 data points with 8 variables with 4 different parameter settings (i.e. covariance and
+mean).
+```{r create data}
+
+set.seed(331)
+
+nofsample <- 500
+nvar<-8
+mean_data <- rbind(c(5,6,4,3,2,5,3,1),c(3,3,3,3,3,3,3,3),c(4,1,2,5,6,9,3,4),c(4,4,4,4,3,3,2,2))
+cov_data = c(4,5,2,1)
+
+for (i in 1:4){
+
+mu=mean_data[i,]
+# Generate a random positive definite covariance matrix
+
+cov_matrix <- matrix(0,nvar,nvar)
+diag(cov_matrix)=cov_data[i]
+temp <- mvrnorm(nofsample, mu, cov_matrix)
+
+assign(paste0("data_", i),temp)
+
+}
+
+data_combined <- rbind(data_1,data_2,data_3,data_4)
+data_combined <- as.data.frame(data_combined)
+colnames(data_combined) <- c("var_1","var_2","var_3","var_4","var_5","var_6","var_7","var_8")
+raw_data <- data_combined
+```
+
+
+
+2- Train an unsupervised random forest to find the random forest similarity (or proximity [2]) between
+2000 observations.
+
+```{r}
+fit<- randomForest(data_combined, proximity = TRUE)
+proximity_matrix <- fit$proximity
+
+```
+
+
+3- Transform similarity to dissimilarity (with an appropriate transformation) and use two alternative clustering approaches to obtain four clusters: partitioning around medoids clustering algorithm and hierarchical clustering with Ward’s method. Moreover, apply k-means clustering to raw data to obtain four clusters so that you can compare to a baseline approach.
+```{r}
+dissimilarity_matrix <- 1-proximity_matrix
+pam_fit <- pam(dissimilarity_matrix,k=4)
+
+
+# Ward’s Method #
+wards_fit<-hclust(dist(dissimilarity_matrix),method='ward.D')
+profiling_wards<-cutree(wards_fit,4)
+
+k_means_fit <- kmeans(data_combined, centers = 4)
+
+data_combined <- cbind(data_combined,pam_clusters=pam_fit$clustering)
+data_combined <- cbind(data_combined,wards_clusters=profiling_wards)
+data_combined <- cbind(data_combined,kmeans_clusters=k_means_fit$cluster)
+
+
+
+```
+
+```{r}
+fviz_cluster(pam_fit, data = raw_data,
+             palette = c("#00AFBB","#2E9FDF", "#E7B800", "#FC4E07"),
+             ggtheme = theme_minimal(),
+             main = "Partitioning Around Medoids Clustering Algorithm"
+             )
+
+fviz_cluster(k_means_fit, data = raw_data,
+             palette = c("#00AFBB","#2E9FDF", "#E7B800", "#FC4E07"),
+             ggtheme = theme_minimal(),
+             main = "Kmeans Algorithm"
+             )
+```
+
+4- Compute sample mean vector and sample covariance matrix for each cluster from three clustering
+strategies and compare with the parameters you used to generate the synthetic data.
+
+```{r}
+## for PAM
+
+for(i in 1:4){
+  temp <- data_combined[data_combined$pam_clusters==i,]%>%select(-c(wards_clusters,kmeans_clusters,pam_clusters))
+  print(paste0("For Cluster ",i))
+  print(colMeans(temp))
+  print(cov(temp))
+  cat("\n")  
+  
+}
+
+```
+
+```{r}
+## for Wards
+
+for(i in 1:4){
+  temp <- data_combined[data_combined$wards_clusters==i,]%>%select(-c(wards_clusters,kmeans_clusters,pam_clusters))
+  print(paste0("For Cluster ",i))
+  print(colMeans(temp))
+  print(cov(temp))
+  cat("\n")  
+  
+}
+```
+
+```{r}
+## for Kmeans
+
+for(i in 1:4){
+  temp <- data_combined[data_combined$kmeans_clusters==i,]%>%select(-c(wards_clusters,kmeans_clusters,pam_clusters))
+  print(paste0("For Cluster ",i))
+  print(colMeans(temp))
+  print(cov(temp))
+  cat("\n")  
+  
+}
+```
+
+```{r}
+data_combined %>%
+  count(wards_clusters==1,wards_clusters==2,wards_clusters==3,wards_clusters==4)
+
+data_combined %>%
+  count(pam_clusters==1,pam_clusters==2,pam_clusters==3,pam_clusters==4)
+
+data_combined %>%
+  count(kmeans_clusters==1,kmeans_clusters==2,kmeans_clusters==3,kmeans_clusters==4)
+```
+
+It can be seen that partitioning around medoids clustering algorithm and hierarchical clustering with Ward’s method have resulted with different clusterings compared to Kmeans approach.
+
+
+5- Compare the performance of the proposed strategies when we introduce additional noise variables from
+Bernoulli distribution up to 8 variables.
+
+```{r}
+noise_data <- matrix(rbinom(8*2000, 1, 0.5), ncol = 8)
+data_combined_v2 <- cbind(raw_data,noise_data)
+
+```
+
+
+```{r}
+fit <- randomForest(data_combined_v2, proximity = TRUE)
+proximity_matrix <- fit$proximity
+
+```
+
+
+```{r}
+dissimilarity_matrix <- 1-proximity_matrix
+pam_fit <- pam(dissimilarity_matrix,k=4)
+
+
+# Ward’s Method #
+wards_fit<-hclust(dist(dissimilarity_matrix),method='ward.D')
+profiling_wards<-cutree(wards_fit,4)
+
+k_means_fit <- kmeans(data_combined, centers = 4)
+
+data_combined_v2 <- cbind(data_combined_v2,pam_clusters=pam_fit$clustering)
+data_combined_v2 <- cbind(data_combined_v2,wards_clusters=profiling_wards)
+data_combined_v2 <- cbind(data_combined_v2,kmeans_clusters=k_means_fit$cluster)
+
+
+
+```
+
+```{r}
+fviz_cluster(pam_fit, data = raw_data,
+             palette = c("#00AFBB","#2E9FDF", "#E7B800", "#FC4E07"),
+             ggtheme = theme_minimal(),
+             main = "Partitioning Around Medoids Clustering Algorithm"
+             )
+
+fviz_cluster(k_means_fit, data = raw_data,
+             palette = c("#00AFBB","#2E9FDF", "#E7B800", "#FC4E07"),
+             ggtheme = theme_minimal(),
+             main = "Kmeans Algorithm"
+             )
+```
+
+
+```{r}
+## for PAM
+
+for(i in 1:4){
+  temp <- data_combined_v2[data_combined_v2$pam_clusters==i,]%>%select(-c(wards_clusters,kmeans_clusters,pam_clusters))
+  print(paste0("For Cluster ",i))
+  print(colMeans(temp))
+  print(cov(temp))
+  cat("\n")  
+  
+}
+
+```
+
+```{r}
+## for Wards
+
+for(i in 1:4){
+  temp <- data_combined_v2[data_combined_v2$wards_clusters==i,]%>%select(-c(wards_clusters,kmeans_clusters,pam_clusters))
+  print(paste0("For Cluster ",i))
+  print(colMeans(temp))
+  print(cov(temp))
+  cat("\n")  
+  
+}
+```
+
+```{r}
+## for Kmeans
+
+for(i in 1:4){
+  temp <- data_combined_v2[data_combined_v2$kmeans_clusters==i,]%>%select(-c(wards_clusters,kmeans_clusters,pam_clusters))
+  print(paste0("For Cluster ",i))
+  print(colMeans(temp))
+  print(cov(temp))
+  cat("\n")  
+  
+}
+```
+After introducing the noise data, the performances of the approaches hasn't significantly changed.
+```{r}
+data_combined_v2 %>%
+  count(wards_clusters==1,wards_clusters==2,wards_clusters==3,wards_clusters==4)
+
+data_combined_v2 %>%
+  count(pam_clusters==1,pam_clusters==2,pam_clusters==3,pam_clusters==4)
+
+data_combined_v2 %>%
+  count(kmeans_clusters==1,kmeans_clusters==2,kmeans_clusters==3,kmeans_clusters==4)
+```
+
+-> Random Forests provides effective solutions for various problems. However, in high dimensionality, the data becomes sparse in its state space and density and distance between
+points, become less meaningful (the curse of dimensionality) and random forest algorithm may overfit or fail to explain the relationship between variables and its performance may decrease. In such cases, dimensionality reduction can be the solution.
+
